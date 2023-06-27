@@ -78,10 +78,11 @@ class Product(BaseModel):
 
 class Deal(BaseModel):
 	contact = models.ForeignKey(User, on_delete=models.CASCADE, related_name="deal")
-	lead_id = models.ForeignKey(Lead, on_delete=models.CASCADE, related_name='lead')
+	lead_id = models.ForeignKey(Lead, on_delete=models.CASCADE, related_name='lead', null=True, blank=True)
 	stage_id = models.CharField(max_length=100, blank=True, null=True)
 	deal_id = models.IntegerField()
-	products = models.ManyToManyField(Product, related_name="products")
-	
+	products = models.ForeignKey(Product, related_name="products", on_delete=models.SET_NULL, null=True, blank=True)
+	is_paid = models.BooleanField(default=False)
+		
 	def __str__(self):
 		return f'{self.contact.first_name} {self.contact.last_name} #{self.deal_id}'

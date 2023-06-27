@@ -141,13 +141,13 @@ def button_callback(update: Update, context):
         ]
         
         query.answer('Курс ҳақида маълумотлар')
-        query.bot.send_message(chat_id=query.message.chat_id, text=text, reply_markup=InlineKeyboardMarkup([buttons]))
+        query.bot.send_message(chat_id=query.message.chat_id, text=text, reply_markup=InlineKeyboardMarkup([buttons]))        
     elif button_data[3] == 'cancel':
         query.answer('Орқага')
         return ConversationHandler.END
 
     elif button_data[3] == 'payment':
-        requests.post('http://localhost:8000/api/createdeal/', json={'telegram_id': update.effective_chat.id, 'product_id': button_data[1]})        
+        requests.post('http://localhost:8000/api/createdeal/', json={'telegram_id': update.effective_chat.id, 'product_id': button_data[1]}).json()
         
         content = requests.get('http://localhost:8000/api/getcontent/', params={'title': 'payment'}).json()        
         query.answer('Тўлов қилиш')
@@ -155,7 +155,31 @@ def button_callback(update: Update, context):
     else:
         query.answer('Нотўғри буйруқ')
         query.bot.send_message(chat_id=query.message.chat_id, text='Нотўғри буйруқ')
+
+def send_files(update: Update, context):
+    message = update.effective_message
+    deal = requests.get('http://localhost:8000/api/getdeal/', params={"telegram_id": update.effective_chat.id}).json()
     
+    if message.photo:
+        photo = message.photo[-1]
+        file_id = photo.file_id
+        
+        file_path = context.bot.get_file(file_id).file_path
+    elif message.document:
+        document = message.document
+        file_id = document.file_id
+        file_path = context.bot.get_file(file_id).file_path
+    
+    if 'error' not in deal:
+        requests.post('http://localhost:8000/api/sendfile/', json={'path': file_path, 'deal': deal['deal']}).json()
+        
+        valid_file = requests.get('http://localhost:8000/api/getcontent/', params={'title': 'valid file'}).json()
+        update.message.reply_text(text=valid_file['text'])
+    else:
+        invalid_file = requests.get('http://localhost:8000/api/getcontent/', params={'title': 'invalid file'}).json()        
+        update.message.reply_text(text=invalid_file['text'])
+        get_products(update, context)
+
 def main():
     updater = Updater(TOKEN, use_context=True)
     dispatcher = updater.dispatcher
@@ -171,6 +195,7 @@ def main():
     dispatcher.add_handler(menu_handler)
     dispatcher.add_handler(button_handler)
     dispatcher.add_handler(callback_handler)
-    
+    dispatcher.add_handler(MessageHandler(Filters.document | Filters.photo, send_files))
+
     updater.start_polling()
     updater.idle()

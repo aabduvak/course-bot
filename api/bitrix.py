@@ -1,9 +1,8 @@
 import requests
-import json
-from rest_framework.response import Response
 from django.conf import settings
-
-
+import json
+import uuid
+import base64
 
 class Bitrix:
     BASE_URL = ''
@@ -218,7 +217,6 @@ class Bitrix:
         
         return self.call('crm.deal.contact.add', fields, True)
         
-
     def set_product_to_deal(self, products, deal_id):
         if deal_id is None or products is None:
             return None
@@ -239,7 +237,24 @@ class Bitrix:
         
         res = self.call('crm.deal.productrows.set', fields, True)        
         return res
+    
+    def update_deal(self, data, id, field):
         
+        if not id or not data:
+            return None
+        
+        fields = {
+            'id': id,
+            'fields': {
+                field: data
+            },
+            'params': { "REGISTER_SONET_EVENT": "Y" }
+        }
+        
+        res = self.call("crm.deal.update", fields, True)['result']
+        return res
+    
+    
     
     def __init__(self):
         self.BASE_URL = f'{settings.BITRIX_DOMAIN}/rest/{settings.BITRIX_USER}/{settings.BITRIX_SECRET_KEY}'

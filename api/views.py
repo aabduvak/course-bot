@@ -3,6 +3,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.contrib.sites.shortcuts import get_current_site
 from django.http import JsonResponse
+from django.conf import settings
 from bs4 import BeautifulSoup
 import requests
 
@@ -150,11 +151,52 @@ class CreateDeal(APIView):
             deal_data['lead'] = lead
         
         id = bx24.create_deal(deal_data)
-        res = bx24.set_customer_to_deal(user.bitrix_id, id)
+        bx24.set_customer_to_deal(user.bitrix_id, id)
         bx24.set_product_to_deal(product, id)
         
-        return Response({'result': 'success'}, status=200)
+        deal = Deal.objects.create(contact=user, products=product[0], deal_id=int(id), stage_id="NEW")
+        deal.save()
+        
+        return Response({'result': 'success', 'deal': id}, status=200)
 
+class GetDeal(APIView):
+    def get(self, request):
+        telegram_id = request.query_params.get('telegram_id')
+        
+        # Query the User model based on the username
+        try:
+            user = User.objects.get(telegram_id=telegram_id)
+            
+            deals = Deal.objects.filter(contact=user, is_paid=False)
+            
+            last_deal = deals.latest('date_created')
+            
+            if deals.count() > 0:
+                return Response({
+                    'deal': last_deal.deal_id
+                })
+            return Response({'error': 'deal not found'}, status=404)
+        except Deal.DoesNotExist:
+            return Response({'error': 'deal not found'}, status=404)
+        
+
+class SendFile(APIView):
+    def post(self, request):
+        file_path = request.data['path']
+        deal_id = request.data['deal']
+
+        res = bx24.update_deal(file_path, deal_id, 'UF_CRM_1687899009378')
+        
+        if Deal.objects.filter(deal_id=deal_id).exists():
+            deal = Deal.objects.get(deal_id=deal_id)
+            deal.is_paid = True
+            deal.save()
+        
+        if res:
+            bx24.update_deal('PREPAYMENT_INVOICE', deal_id, 'STAGE_ID')
+            return Response({'status': 'success'}, status=200)
+        return Response({'error': 'failed'}, status=401)
+        
 def remove_html_tags(text):
     soup = BeautifulSoup(text, "html.parser")
     return soup.get_text()
