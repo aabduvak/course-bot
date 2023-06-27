@@ -11,6 +11,7 @@ logging.basicConfig(
 )
 
 TOKEN = settings.TELEGRAM_TOKEN
+BASE_URL = 'https://' + str(settings.ALLOWED_HOSTS[0])
 
 MENU_ITEMS = {
     'course': '',
@@ -19,10 +20,10 @@ MENU_ITEMS = {
 }
 
 def start(update: Update, context):
-    start = requests.get('http://localhost:8000/api/getcontent/', params={"title": "start"}).json()
+    start = requests.get(f'{BASE_URL}/api/getcontent/', params={"title": "start"}).json()
     
     
-    url = 'http://localhost:8000/api/getuser/'
+    url = f'{BASE_URL}/api/getuser/'
     response = requests.get(url, params={'chat_id': update.effective_chat.id})
     
     text = f'{start["text"]} {update.effective_user.first_name}'
@@ -35,7 +36,7 @@ def start(update: Update, context):
         welcome(update, context)
 
 def register(update: Update, context):
-    registration = requests.get('http://localhost:8000/api/getcontent/', params={"title": "registration"}).json()
+    registration = requests.get(f'{BASE_URL}/api/getcontent/', params={"title": "registration"}).json()
     
     button = [
         [KeyboardButton(text=f'{registration["buttons"][0]}', request_contact=True)]
@@ -58,7 +59,7 @@ def send_data(update: Update, context):
         'phone': update.effective_message.contact.phone_number
     }
     
-    res = requests.post('http://localhost:8000/api/storeuser/', data=data)
+    res = requests.post(f'{BASE_URL}/api/storeuser/', data=data)
     
     if res.status_code == 200 or res.status_code == 201:
         update.message.reply_text('✅ Рўйҳатдан ўтдингиз')
@@ -69,7 +70,7 @@ def send_data(update: Update, context):
     welcome(update, context)
 
 def welcome(update: Update, context):
-    welcome = requests.get('http://localhost:8000/api/getcontent/', params={"title": "welcome"}).json()
+    welcome = requests.get(f'{BASE_URL}/api/getcontent/', params={"title": "welcome"}).json()
     
     buttons = []
     for button in welcome['buttons']:
@@ -82,7 +83,7 @@ def welcome(update: Update, context):
     return ConversationHandler.END
 
 def menu(update: Update, context):
-    menu = requests.get('http://localhost:8000/api/getcontent/', params={"title": "menu"}).json()
+    menu = requests.get(f'{BASE_URL}/api/getcontent/', params={"title": "menu"}).json()
     
     buttons = []
     for button in menu['buttons']:
@@ -95,23 +96,23 @@ def menu(update: Update, context):
     return ConversationHandler.END
 
 def detail(update: Update, context):
-    detail_content = requests.get('http://localhost:8000/api/getcontent/', params={'title': 'detail'}).json()
+    detail_content = requests.get(f'{BASE_URL}/api/getcontent/', params={'title': 'detail'}).json()
     
     MENU_ITEMS['menu'] = detail_content['buttons'][0]
     update.message.reply_text(text=detail_content['text'], reply_markup=ReplyKeyboardMarkup([[KeyboardButton(detail_content['buttons'][0])]], resize_keyboard=True, one_time_keyboard=True))
     
-    requests.post('http://localhost:8000/api/detail/', json={'telegram_id': update.effective_chat.id})
+    requests.post(f'{BASE_URL}/api/detail/', json={'telegram_id': update.effective_chat.id})
     
     return ConversationHandler.END
     
 def get_products(update: Update, context):
-    product_list = requests.get('http://localhost:8000/api/getproducts/').json()
+    product_list = requests.get(f'{BASE_URL}/api/getproducts/').json()
     
     buttons = []
     for product in product_list['items']:
         buttons.append(InlineKeyboardButton(text=product['name'], callback_data=f"product:{product['id']}:status:show"))
     
-    content = requests.get('http://localhost:8000/api/getcontent/', params={'title': 'products'}).json()
+    content = requests.get(f'{BASE_URL}/api/getcontent/', params={'title': 'products'}).json()
     update.message.reply_text(text=content['text'], reply_markup=InlineKeyboardMarkup([buttons]))
     return ConversationHandler.END
 
@@ -132,7 +133,7 @@ def button_callback(update: Update, context):
     button_data = query.data.split(':')
     
     if button_data[1] != '0' and button_data[3] == 'show':    
-        product = requests.get('http://localhost:8000/api/productdetails/', params={'product_id': button_data[1]}).json()
+        product = requests.get(f'{BASE_URL}/api/productdetails/', params={'product_id': button_data[1]}).json()
         
         text = f"{product['id']}. {product['name']}\n\n{product['description']}\n\nКурс нархи {product['price']} сум"
         buttons = [
@@ -147,9 +148,9 @@ def button_callback(update: Update, context):
         return ConversationHandler.END
 
     elif button_data[3] == 'payment':
-        requests.post('http://localhost:8000/api/createdeal/', json={'telegram_id': update.effective_chat.id, 'product_id': button_data[1]}).json()
+        requests.post(f'{BASE_URL}/api/createdeal/', json={'telegram_id': update.effective_chat.id, 'product_id': button_data[1]}).json()
         
-        content = requests.get('http://localhost:8000/api/getcontent/', params={'title': 'payment'}).json()        
+        content = requests.get(f'{BASE_URL}/api/getcontent/', params={'title': 'payment'}).json()        
         query.answer('Тўлов қилиш')
         query.bot.send_message(chat_id=query.message.chat_id, text=content['text'])
     else:
@@ -158,7 +159,7 @@ def button_callback(update: Update, context):
 
 def send_files(update: Update, context):
     message = update.effective_message
-    deal = requests.get('http://localhost:8000/api/getdeal/', params={"telegram_id": update.effective_chat.id}).json()
+    deal = requests.get(f'{BASE_URL}/api/getdeal/', params={"telegram_id": update.effective_chat.id}).json()
     
     if message.photo:
         photo = message.photo[-1]
@@ -171,12 +172,12 @@ def send_files(update: Update, context):
         file_path = context.bot.get_file(file_id).file_path
     
     if 'error' not in deal:
-        requests.post('http://localhost:8000/api/sendfile/', json={'path': file_path, 'deal': deal['deal']}).json()
+        requests.post(f'{BASE_URL}/api/sendfile/', json={'path': file_path, 'deal': deal['deal']}).json()
         
-        valid_file = requests.get('http://localhost:8000/api/getcontent/', params={'title': 'valid file'}).json()
+        valid_file = requests.get(f'{BASE_URL}/api/getcontent/', params={'title': 'valid file'}).json()
         update.message.reply_text(text=valid_file['text'])
     else:
-        invalid_file = requests.get('http://localhost:8000/api/getcontent/', params={'title': 'invalid file'}).json()        
+        invalid_file = requests.get(f'{BASE_URL}/api/getcontent/', params={'title': 'invalid file'}).json()        
         update.message.reply_text(text=invalid_file['text'])
         get_products(update, context)
 
