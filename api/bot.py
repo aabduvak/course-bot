@@ -53,11 +53,14 @@ def send_data(update: Update, context):
         'telegram_id': update.effective_user.id,
         'username': update.effective_user.name,
         'first_name': update.effective_user.first_name,
-        'last_name': update.effective_user.last_name,
+        'last_name': '',
         'chat_id': update.effective_chat.id,
         'link': update.effective_user.link,
         'phone': update.effective_message.contact.phone_number
     }
+    
+    if update.effective_user.last_name is not None:
+        data['last_name'] = update.effective_user.last_name,
     
     res = requests.post(f'{BASE_URL}/api/storeuser/', data=data)
     
