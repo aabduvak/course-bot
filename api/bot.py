@@ -11,7 +11,9 @@ logging.basicConfig(
 )
 
 TOKEN = settings.TELEGRAM_TOKEN
-BASE_URL = 'https://' + str(settings.ALLOWED_HOSTS[0])
+#BASE_URL = 'https://' + str(settings.ALLOWED_HOSTS[0])
+BASE_URL = 'http://localhost:8000'
+
 
 MENU_ITEMS = {
     'course': '',
@@ -59,8 +61,8 @@ def send_data(update: Update, context):
         'phone': update.effective_message.contact.phone_number
     }
     
-    if update.effective_user.last_name is not None:
-        data['last_name'] = update.effective_user.last_name,
+    if update.message.from_user.last_name:
+        data['last_name'] = update.effective_user.last_name
     
     res = requests.post(f'{BASE_URL}/api/storeuser/', data=data)
     

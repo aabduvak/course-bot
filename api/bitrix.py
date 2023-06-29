@@ -124,10 +124,10 @@ class Bitrix:
         if user is None:
             return None
         
+        
         fields = {
             'fields': {
                 'NAME': user['first_name'],
-                'LAST_NAME': user['last_name'],
                 'OPENED': 'Y',
                 'TYPE_ID': 'CLIENT',
                 'ASSIGNED_BY_ID': '90',
@@ -136,6 +136,8 @@ class Bitrix:
             'params': { "REGISTER_SONET_EVENT": "Y" }
         }
         
+        if 'last_name' in user:
+            fields['fields']['LAST_NAME'] = user['last_name']
         res = self.call("crm.contact.add", fields, True)['result']
         
         return res

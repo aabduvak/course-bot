@@ -179,7 +179,6 @@ class GetDeal(APIView):
         except Deal.DoesNotExist:
             return Response({'error': 'deal not found'}, status=404)
         
-
 class SendFile(APIView):
     def post(self, request):
         file_path = request.data['path']
@@ -196,7 +195,11 @@ class SendFile(APIView):
             bx24.update_deal('PREPAYMENT_INVOICE', deal_id, 'STAGE_ID')
             return Response({'status': 'success'}, status=200)
         return Response({'error': 'failed'}, status=401)
-        
+
+class SendMessage(APIView):
+    def post(self, request):
+        print(request.data)
+    
 def remove_html_tags(text):
     soup = BeautifulSoup(text, "html.parser")
     return soup.get_text()
