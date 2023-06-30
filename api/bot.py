@@ -11,8 +11,8 @@ logging.basicConfig(
 )
 
 TOKEN = settings.TELEGRAM_TOKEN
-#BASE_URL = 'https://' + str(settings.ALLOWED_HOSTS[0])
-BASE_URL = 'http://localhost:8000'
+BASE_URL = 'https://' + str(settings.ALLOWED_HOSTS[0])
+#BASE_URL = 'http://localhost:8000'
 
 
 MENU_ITEMS = {

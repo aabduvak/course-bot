@@ -25,7 +25,7 @@ class ContentViewSet(ModelViewSet):
 class GetUser(APIView):
     def get(self, request):
         chat_id = request.query_params.get('chat_id')
-        
+
         # Query the User model based on the username
         try:
             user = User.objects.get(chat_id=chat_id)
@@ -41,40 +41,41 @@ class GetUser(APIView):
 class StoreUser(APIView):
     def post(self, request):
         user = request.data.copy()
-        
+
         contact = bx24.create_customer(user)
-        
+
         user['bitrix_id'] = contact
         current_site = get_current_site(request)
-        
+
         requests.post(f'http://{current_site}/api/users/', data=user)
-        
-        bx24.add_comment(contact, 'contact', f'Контакт создан: {user["first_name"]} #{contact}\nПользователь отправил контактные данные')
+
+        bx24.add_comment(int(contact), 'contact', f'Контакт создан: {user["first_name"]} #{contact}\nПользователь отправил контактные данные')
         return Response({'result': 'successfull'}, status=200)
 
 class UpdateLead(APIView):
     def post(self, request):
         telegram_id = request.data['telegram_id']
         user = User.objects.get(telegram_id=telegram_id)
-        
+
         if not Lead.objects.filter(contact=user).exists():
             return Response({'error': 'lead not found'}, status=404)
-        
+
         lead = Lead.objects.get(contact__telegram_id=telegram_id)
         lead.state_id = 'PROCESSED'
         lead.save()
-        
-        bx24.add_comment(lead.lead_id, 'lead', f'Лид обновлен: {user.first_name}\nПользователь нажал кнопку "подробнее"')
+
+        res = bx24.add_comment(int(lead.lead_id), 'lead', f'Лид обновлен: {user.first_name}\nПользователь нажал кнопку "подробнее"')
+        print(res)
         bx24.update_lead(lead.lead_id, {'STATUS': lead.status_id})
 
 class CreateLead(APIView):
     def post(self, request):
         telegram_id = request.data['telegram_id']
         user = User.objects.get(telegram_id=telegram_id)
-        
+
         if Lead.objects.filter(contact__telegram_id=telegram_id).exists():
-            return Response({'result': 'status updated'}, status=200) 
-        
+            return Response({'result': 'status updated'}, status=200)
+
         data = {
             'first_name': user.first_name,
             'last_name': user.last_name,
@@ -83,30 +84,30 @@ class CreateLead(APIView):
         }
 
         res = bx24.create_lead(data)
-        
+
         lead = Lead.objects.create(contact=user, lead_id=res)
         lead.save()
-        
+
         bx24.add_comment(lead.lead_id, 'lead', f'Лид создан: {user.first_name} #{lead.lead_id}\nПользователь нажал кнопку "старт"')
         return Response({'result': 'successfull'}, status=200)
 
 class GetContent(APIView):
     def get(self, request):
         title = request.query_params.get('title')
-        
+
         try:
             content = Content.objects.get(title=title)
             buttons = Button.objects.filter(parent=content)
-            
+
             data = {
 				'text': content.description,
                 'buttons': []
             }
-            
+
             if buttons.count() > 0:
                 for button in buttons:
                     data['buttons'].append(button.text)
-    
+
             return Response(data)
         except Content.DoesNotExist:
             return Response({'error': 'Content not found'}, status=404)
@@ -114,11 +115,11 @@ class GetContent(APIView):
 class GetFilteredProducts(APIView):
     def get(self, request):
         section = Section.objects.get(name='Courses')
-        
+
         filter = {
             'section': section.section_id,
         }
-        
+
         products = bx24.get_product_list(filter)
 
         for product in products['items']:
@@ -128,7 +129,8 @@ class GetFilteredProducts(APIView):
                     price=product['price'],
                     description=remove_html_tags(product['description']),
                     section_id=section,
-                    link = product['link']
+                    link = product['link'],
+                    product_id=product['id']
                 ).save()
             else:
                 prod = Product.objects.get(product_id=product['id'])
@@ -146,7 +148,7 @@ class GetFilteredProducts(APIView):
 class GetProductDetails(APIView):
     def get(self, request):
         product_id = request.query_params.get('product_id')
-        
+
         try:
             product = Product.objects.get(product_id=product_id)
             return Response({
@@ -162,41 +164,40 @@ class CreateDeal(APIView):
     def post(self, request):
         data = request.data
         lead = None
-        
+
         user = User.objects.get(telegram_id=data['telegram_id'])
         product = Product.objects.filter(product_id=data['product_id'])
-        
+
         deal_data = {
             'user': user.bitrix_id
         }
-        
+
         if Lead.objects.filter(contact=user).exists():
             lead = Lead.objects.get(contact=user)
             deal_data['lead'] = lead.lead_id
-            bx24.add_comment(lead.lead_id, 'lead', f'Сделка создана: {user.first_name} #{deal.deal_id}\nПользователь нажал детали курса')
-        
+
         id = bx24.create_deal(deal_data)
         bx24.set_customer_to_deal(user.bitrix_id, id)
         bx24.set_product_to_deal(product, id)
-        
+
         deal = Deal.objects.create(contact=user, products=product[0], deal_id=int(id), stage_id="NEW")
         deal.save()
-        
+
         bx24.add_comment(deal.deal_id, 'deal', f'Сделка создана: {user.first_name} #{deal.deal_id}\nПользователь нажал детали курса')
         return Response({'result': 'success', 'deal': id}, status=200)
 
 class GetDeal(APIView):
     def get(self, request):
         telegram_id = request.query_params.get('telegram_id')
-        
+
         # Query the User model based on the username
         try:
             user = User.objects.get(telegram_id=telegram_id)
-            
+
             deals = Deal.objects.filter(contact=user, is_paid=False)
-            
+
             last_deal = deals.latest('date_created')
-            
+
             if deals.count() > 0:
                 return Response({
                     'deal': last_deal.deal_id
@@ -204,19 +205,19 @@ class GetDeal(APIView):
             return Response({'error': 'deal not found'}, status=404)
         except Deal.DoesNotExist:
             return Response({'error': 'deal not found'}, status=404)
-        
+
 class SendFile(APIView):
     def post(self, request):
         file_path = request.data['path']
         deal_id = request.data['deal']
 
         res = bx24.update_deal(file_path, deal_id, 'UF_CRM_1687899009378')
-        
+
         if Deal.objects.filter(deal_id=deal_id).exists():
             deal = Deal.objects.get(deal_id=deal_id)
             deal.is_paid = True
             deal.save()
-        
+
         if res:
             bx24.update_deal('PREPAYMENT_INVOICE', deal_id, 'STAGE_ID')
             bx24.add_comment(deal.deal_id, 'deal', f'Сделка обновлена: {deal.contact.first_name} #{deal.deal_id}\nПользователь отправил файл')
@@ -226,27 +227,27 @@ class SendFile(APIView):
 class SendMessage(APIView):
     def post(self, request):
         id = request.POST.get('deal')
-        
+
         if id is None:
             return Response({'error': 'invalid request'}, status=401)
-        
+
         if Deal.objects.filter(deal_id=id).count() <= 0:
             return Response({'error': 'deal not found'}, status=404)
 
         deal = Deal.objects.get(deal_id=id)
-        
+
         user = deal.contact
-        
+
         message = Content.objects.get(title='accept')
         button = Button.objects.get(parent=message)
-        
+
         keyboard = [
             [{
                 'text': button.text,
                 'url': deal.products.link
             }]
         ]
-        
+
         reply_markup = {'inline_keyboard': keyboard}
 
         api_url = f'https://api.telegram.org/bot{settings.TELEGRAM_TOKEN}/sendMessage'
@@ -256,13 +257,13 @@ class SendMessage(APIView):
             'protect_content': True,
             'reply_markup': json.dumps(reply_markup)
         }
-        
+
         response = requests.post(api_url, json=payload)
-        
+
         if response.status_code == 200:
             bx24.add_comment(deal.deal_id, 'deal', f'Сделка обновлена: {deal.contact.first_name} #{deal.deal_id}\nСсылка на телеграмм канал отправлена пользователю')
             return Response({'success': 'message sent successfully'}, status=200)
-        
+
         return Response({'error': 'got error while sending message'}, status=400)
 
 def remove_html_tags(text):
