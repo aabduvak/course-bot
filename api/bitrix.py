@@ -37,8 +37,7 @@ class Bitrix:
                 'bx_id': contact["ID"],
                 'first_name': contact["NAME"],
                 'last_name': contact["LAST_NAME"],
-                'phone': contact["PHONE"][0]["VALUE"],
-                'region': reg
+                'phone': contact["PHONE"][0]["VALUE"]
             }
         }
 

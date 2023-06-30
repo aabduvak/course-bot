@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import SimpleRouter
 
-from .views import UserViewSet, GetUser, GetContent, StoreUser, GetDetail, GetFilteredProducts, GetProductDetails, CreateDeal, SendFile, GetDeal
+from .views import UserViewSet, GetUser, GetContent, StoreUser, GetDetail, GetFilteredProducts, GetProductDetails, CreateDeal, SendFile, GetDeal, SendMessage
 
 router = SimpleRouter()
 router.register(r'users', UserViewSet, basename='user')
@@ -17,5 +17,6 @@ urlpatterns = [
     path('productdetails/', GetProductDetails.as_view(), name='get_product'),
     path('createdeal/', CreateDeal.as_view(), name='create_deal'),
     path('sendfile/', SendFile.as_view(), name='sendfile'),
-    path('getdeal/', GetDeal.as_view(), name='get_deal')
+    path('getdeal/', GetDeal.as_view(), name='get_deal'),
+    path('sendmessage/', SendMessage.as_view(), name='send')
 ]

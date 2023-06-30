@@ -6,6 +6,7 @@ from django.http import JsonResponse
 from django.conf import settings
 from bs4 import BeautifulSoup
 import requests
+import json
 
 from .models import User, Content, Button, Lead, Section, Product, Deal
 from .serializers import UserSerializer, ContentSerializer
@@ -198,8 +199,46 @@ class SendFile(APIView):
 
 class SendMessage(APIView):
     def post(self, request):
-        print(request.data)
-    
+        id = request.POST.get('deal')
+        
+        if id is None:
+            return Response({'error': 'invalid request'}, status=401)
+        
+        if Deal.objects.filter(deal_id=id).count() <= 0:
+            return Response({'error': 'deal not found'}, status=404)
+
+        deal = Deal.objects.get(deal_id=id)
+        
+        user = deal.contact
+        
+        message = Content.objects.get(title='accept')
+        button = Button.objects.get(parent=message)
+        
+        keyboard = [
+            [{
+                'text': button.text,
+                'url': deal.products.link
+            }]
+        ]
+        
+        reply_markup = {'inline_keyboard': keyboard}
+
+        api_url = f'https://api.telegram.org/bot{settings.TELEGRAM_TOKEN}/sendMessage'
+        payload = {
+            'chat_id': user.telegram_id,
+            'text': message.description,
+            'protect_content': True,
+            'reply_markup': json.dumps(reply_markup)
+        }
+        
+        response = requests.post(api_url, json=payload)
+        
+        if response.status_code == 200:
+            return Response({'success': 'message sent successfully'}, status=200)
+        
+        return Response({'error': 'got error while sending message'}, status=400)
+
+
 def remove_html_tags(text):
     soup = BeautifulSoup(text, "html.parser")
     return soup.get_text()
