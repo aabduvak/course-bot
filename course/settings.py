@@ -91,14 +91,26 @@ TEMPLATES = [
 WSGI_APPLICATION = 'course.wsgi.application'
 
 
+DB_HOST = env('DB_HOST')
+DB_USER = env('DB_USER')
+DB_NAME = env('DB_NAME')
+DB_PASSWORD = env('DB_PASSWORD')
+
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, "db.sqlite3")
-    }
+DATABASES = {  
+    'default': {  
+        'ENGINE': 'django.db.backends.mysql',  
+        'NAME': DB_NAME,  
+        'USER': DB_USER,  
+        'PASSWORD': DB_PASSWORD,  
+        'HOST': DB_HOST,
+        'PORT': '3306',  
+        'OPTIONS': {  
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"  
+        }  
+    }  
 }
 
 
