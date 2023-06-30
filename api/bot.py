@@ -75,16 +75,18 @@ def send_data(update: Update, context):
     welcome(update, context)
 
 def welcome(update: Update, context):
-    welcome = requests.get(f'{BASE_URL}/api/getcontent/', params={"title": "welcome"}).json()
+    content = requests.get(f'{BASE_URL}/api/getcontent/', params={"title": "welcome"}).json()
+    
+    requests.post(f'{BASE_URL}/api/detail/', json={'telegram_id': update.effective_chat.id})
     
     buttons = []
-    for button in welcome['buttons']:
+    for button in content['buttons']:
         buttons.append([KeyboardButton(button)])
     
-    MENU_ITEMS['course'] = welcome['buttons'][0]
-    MENU_ITEMS['detail'] = welcome['buttons'][1]
+    MENU_ITEMS['course'] = content['buttons'][0]
+    MENU_ITEMS['detail'] = content['buttons'][1]
     
-    update.message.reply_text(text=welcome['text'], reply_markup=ReplyKeyboardMarkup(buttons, resize_keyboard=True, one_time_keyboard=True))
+    update.message.reply_text(text=content['text'], reply_markup=ReplyKeyboardMarkup(buttons, resize_keyboard=True, one_time_keyboard=True))
     return ConversationHandler.END
 
 def menu(update: Update, context):

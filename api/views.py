@@ -42,29 +42,52 @@ class StoreUser(APIView):
     def post(self, request):
         user = request.data.copy()
         
-        res = bx24.create_customer(user)
+        contact = bx24.create_customer(user)
         
-        user['bitrix_id'] = res
+        user['bitrix_id'] = contact
         current_site = get_current_site(request)
         
         requests.post(f'http://{current_site}/api/users/', data=user)
         
+        bx24.add_comment(contact, 'contact', f'Контакт создан: {user["first_name"]} #{contact}\nПользователь отправил контактные данные')
         return Response({'result': 'successfull'}, status=200)
 
-class GetDetail(APIView):
+class UpdateLead(APIView):
     def post(self, request):
         telegram_id = request.data['telegram_id']
+        user = User.objects.get(telegram_id=telegram_id)
         
+        if not Lead.objects.filter(contact=user).exists():
+            return Response({'error': 'lead not found'}, status=404)
+        
+        lead = Lead.objects.get(contact__telegram_id=telegram_id)
+        lead.state_id = 'PROCESSED'
+        lead.save()
+        
+        bx24.add_comment(lead.lead_id, 'lead', f'Лид обновлен: {user.first_name}\nПользователь нажал кнопку "подробнее"')
+        bx24.update_lead(lead.lead_id, {'STATUS': lead.status_id})
+
+class CreateLead(APIView):
+    def post(self, request):
+        telegram_id = request.data['telegram_id']
         user = User.objects.get(telegram_id=telegram_id)
         
         if Lead.objects.filter(contact__telegram_id=telegram_id).exists():
-            return Response({'result': 'already exist'}, status=200) 
-               
-        res = bx24.create_lead(user)
+            return Response({'result': 'status updated'}, status=200) 
+        
+        data = {
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'phone': user.phone,
+            'id': user.bitrix_id
+        }
+
+        res = bx24.create_lead(data)
         
         lead = Lead.objects.create(contact=user, lead_id=res)
         lead.save()
         
+        bx24.add_comment(lead.lead_id, 'lead', f'Лид создан: {user.first_name} #{lead.lead_id}\nПользователь нажал кнопку "старт"')
         return Response({'result': 'successfull'}, status=200)
 
 class GetContent(APIView):
@@ -144,12 +167,13 @@ class CreateDeal(APIView):
         product = Product.objects.filter(product_id=data['product_id'])
         
         deal_data = {
-            'user': user
+            'user': user.bitrix_id
         }
         
         if Lead.objects.filter(contact=user).exists():
             lead = Lead.objects.get(contact=user)
-            deal_data['lead'] = lead
+            deal_data['lead'] = lead.lead_id
+            bx24.add_comment(lead.lead_id, 'lead', f'Сделка создана: {user.first_name} #{deal.deal_id}\nПользователь нажал детали курса')
         
         id = bx24.create_deal(deal_data)
         bx24.set_customer_to_deal(user.bitrix_id, id)
@@ -158,6 +182,7 @@ class CreateDeal(APIView):
         deal = Deal.objects.create(contact=user, products=product[0], deal_id=int(id), stage_id="NEW")
         deal.save()
         
+        bx24.add_comment(deal.deal_id, 'deal', f'Сделка создана: {user.first_name} #{deal.deal_id}\nПользователь нажал детали курса')
         return Response({'result': 'success', 'deal': id}, status=200)
 
 class GetDeal(APIView):
@@ -194,6 +219,7 @@ class SendFile(APIView):
         
         if res:
             bx24.update_deal('PREPAYMENT_INVOICE', deal_id, 'STAGE_ID')
+            bx24.add_comment(deal.deal_id, 'deal', f'Сделка обновлена: {deal.contact.first_name} #{deal.deal_id}\nПользователь отправил файл')
             return Response({'status': 'success'}, status=200)
         return Response({'error': 'failed'}, status=401)
 
@@ -234,10 +260,10 @@ class SendMessage(APIView):
         response = requests.post(api_url, json=payload)
         
         if response.status_code == 200:
+            bx24.add_comment(deal.deal_id, 'deal', f'Сделка обновлена: {deal.contact.first_name} #{deal.deal_id}\nСсылка на телеграмм канал отправлена пользователю')
             return Response({'success': 'message sent successfully'}, status=200)
         
         return Response({'error': 'got error while sending message'}, status=400)
-
 
 def remove_html_tags(text):
     soup = BeautifulSoup(text, "html.parser")

@@ -147,20 +147,36 @@ class Bitrix:
         
         fields = {
             'fields': {
-                'TITLE': f"{user.first_name} {user.last_name}",
-                'NAME': user.first_name,
-                'LAST_NAME': user.last_name,
+                'NAME': user['first_name'],
                 'OPENED': 'Y',
-                'STATUS_ID': 'PROCESSED',
+                'STATUS_ID': 'NEW',
                 'ASSIGNED_BY_ID': '90',
-                'CONTACT_ID': user.bitrix_id,
-                "PHONE": [ { "VALUE": user.phone, "VALUE_TYPE": "WORK" } ]
+                'CONTACT_ID': user['id'],
+                "PHONE": [ { "VALUE": user['phone'], "VALUE_TYPE": "WORK" } ], 
             },
             'params': { "REGISTER_SONET_EVENT": "Y" }
         }
         
+        if 'last_name' in user:
+            fields['fields']['LAST_NAME'] = user['last_name']
+        
         res = self.call("crm.lead.add", fields, True)['result']
         
+        return res
+
+    def update_lead(self, id, params):
+        if params is None or id is None:
+            return None
+        
+        data = {
+            'id': id,
+            'fields': {}
+        }
+        
+        for key, value in params.items():
+            data['fields'][key] = value
+        
+        res = self.call("crm.lead.update", data, True)['result']
         return res
 
     def get_product_list(self, filter):
@@ -202,6 +218,9 @@ class Bitrix:
             'params': { "REGISTER_SONET_EVENT": "Y" }
         }
         
+        if 'lead' in data:
+            fields['fields']['LEAD_ID'] = data['lead']
+
         res = self.call('crm.deal.add', fields, True)['result']
         return res
 
@@ -255,7 +274,21 @@ class Bitrix:
         res = self.call("crm.deal.update", fields, True)['result']
         return res
     
-    
+    def add_comment(self, id, type, comment):
+        if id is None or type is None or comment:
+            return None
+        
+        fields = {
+            'fields': {
+                "ENTITY_ID": id,
+                "ENTITY_TYPE": type,
+                "COMMENT": comment
+            }
+        }
+        
+        res = self.call('crm.timeline.comment.add', fields, True)['result']
+        
+        return res
     
     def __init__(self):
         self.BASE_URL = f'{settings.BITRIX_DOMAIN}/rest/{settings.BITRIX_USER}/{settings.BITRIX_SECRET_KEY}'
