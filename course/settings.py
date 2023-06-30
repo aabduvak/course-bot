@@ -90,7 +90,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'course.wsgi.application'
 
-
 DB_HOST = env('DB_HOST')
 DB_USER = env('DB_USER')
 DB_NAME = env('DB_NAME')
@@ -138,17 +137,17 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'UTC+5'
 
 USE_I18N = True
 
 USE_TZ = True
 
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.1/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = 'static'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
