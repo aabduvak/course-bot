@@ -53,31 +53,31 @@ def send_data(update: Update, context):
     
     data = {
         'telegram_id': update.effective_user.id,
-        'username': update.effective_user.name,
         'first_name': update.effective_user.first_name,
-        'last_name': '',
         'chat_id': update.effective_chat.id,
-        'link': update.effective_user.link,
         'phone': update.effective_message.contact.phone_number
     }
     
     if update.message.from_user.last_name:
         data['last_name'] = update.effective_user.last_name
     
+    if update.effective_user.link:
+        data['link'] = update.effective_user.link
+    
+    if update.effective_user.name:
+        data['username'] = update.effective_user.name
+        
     res = requests.post(f'{BASE_URL}/api/storeuser/', data=data)
     
-    if res.status_code == 200 or res.status_code == 201:
-        update.message.reply_text('✅ Рўйҳатдан ўтдингиз')
-    else:
+    if res.status_code != 200:
         update.message.reply_text('❌ Кутилмаган муаммо содир бўлди')
         return ConversationHandler.END
     
+    update.message.reply_text('✅ Рўйҳатдан ўтдингиз')
     welcome(update, context)
 
 def welcome(update: Update, context):
     content = requests.get(f'{BASE_URL}/api/getcontent/', params={"title": "welcome"}).json()
-    
-    requests.post(f'{BASE_URL}/api/detail/', json={'telegram_id': update.effective_chat.id})
     
     buttons = []
     for button in content['buttons']:
@@ -85,6 +85,8 @@ def welcome(update: Update, context):
     
     MENU_ITEMS['course'] = content['buttons'][0]
     MENU_ITEMS['detail'] = content['buttons'][1]
+    
+    requests.post(f'{BASE_URL}/api/createlead/', json={'telegram_id': update.effective_chat.id})
     
     update.message.reply_text(text=content['text'], reply_markup=ReplyKeyboardMarkup(buttons, resize_keyboard=True, one_time_keyboard=True))
     return ConversationHandler.END
@@ -108,7 +110,7 @@ def detail(update: Update, context):
     MENU_ITEMS['menu'] = detail_content['buttons'][0]
     update.message.reply_text(text=detail_content['text'], reply_markup=ReplyKeyboardMarkup([[KeyboardButton(detail_content['buttons'][0])]], resize_keyboard=True, one_time_keyboard=True))
     
-    requests.post(f'{BASE_URL}/api/detail/', json={'telegram_id': update.effective_chat.id})
+    requests.post(f'{BASE_URL}/api/updatelead/', json={'telegram_id': update.effective_chat.id})
     
     return ConversationHandler.END
     
@@ -130,10 +132,6 @@ def button_click(update: Update, context):
         detail(update, context)
     elif MENU_ITEMS['menu'] == update.message.text:
         menu(update, context)
-    #elif update.message.text == 'Тўлов қилиш':
-    #    pass
-    #elif update.message.text == 'Орқага':
-    #    get_products(update, context)
 
 def button_callback(update: Update, context):
     query = update.callback_query
